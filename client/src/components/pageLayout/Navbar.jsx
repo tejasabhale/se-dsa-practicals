@@ -15,19 +15,15 @@ const Navbar = () => {
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-white px-4 py-4 sm:px-6">
-      <div className="mx-auto flex max-w-6xl flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto flex max-w-6xl items-center justify-center">
         <Link
           to="/"
           onClick={handleScrollToTop}
-          className="w-fit text-lg font-bold tracking-tight text-slate-900 transition-colors hover:text-slate-600 focus:outline-none"
+          className="w-fit text-center text-lg font-bold tracking-tight text-slate-900 transition-colors hover:text-slate-600 focus:outline-none"
           aria-label="DS Practical Solutions SE - Go to home and scroll to top"
         >
-          DS Practical Solutions SE
+          DSA Solutions SE
         </Link>
-
-        <p className="text-xs font-medium text-slate-500 sm:text-sm">
-          Code toh copy ho gaya, ab viva ka dekh lo! 💀
-        </p>
       </div>
     </nav>
   );
