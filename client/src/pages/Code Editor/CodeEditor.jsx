@@ -15,6 +15,7 @@ import {
   Download,
   FileCode2,
   Files,
+  Folder,
   FolderOpen,
   GitBranch,
   Maximize2,
@@ -191,6 +192,18 @@ const ASSIGNMENTS = [
   },
 ];
 
+const ASSIGNMENT_FOLDER_NAMES = {
+  1: "01-linear-binary-search",
+  2: "02-bubble-selection-sort",
+  3: "03-hash-table",
+  4: "04-singly-linked-list",
+  5: "05-doubly-linked-list",
+  6: "06-infix-to-postfix",
+  7: "07-pizza-parlor-queue",
+  8: "08-binary-search-tree",
+  9: "09-graph-dfs",
+};
+
 const getAssignmentStorageKey = (assignmentId) =>
   assignmentId === 6 ? STORAGE_KEY : `se-practical-assignment-${assignmentId}`;
 
@@ -222,6 +235,37 @@ function IconButton({
     >
       {children}
     </button>
+  );
+}
+
+const VSCODE_LOGO_URL =
+  "https://code.visualstudio.com/assets/branding/code-stable.png";
+
+function VSCodeLogo({ size = 18, className = "" }) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  if (imageFailed) {
+    return (
+      <Code2
+        size={size}
+        className={`shrink-0 text-[#42a5f5] ${className}`}
+        aria-label="Code editor"
+      />
+    );
+  }
+
+  return (
+    <img
+      src={VSCODE_LOGO_URL}
+      alt="Visual Studio Code icon"
+      title="Visual Studio Code icon"
+      width={size}
+      height={size}
+      loading="eager"
+      decoding="async"
+      className={`block shrink-0 object-contain ${className}`}
+      onError={() => setImageFailed(true)}
+    />
   );
 }
 
@@ -344,6 +388,11 @@ export default function CodeEditor() {
   const [activeBottomTab, setActiveBottomTab] = useState("TERMINAL");
   const [isFileOpen, setIsFileOpen] = useState(true);
   const [isExplorerOpen, setIsExplorerOpen] = useState(true);
+  const [expandedFolders, setExpandedFolders] = useState(
+    () => new Set(["workspace", "assignments", "assignment-6"]),
+  );
+  const [isOutlineExpanded, setIsOutlineExpanded] = useState(true);
+  const [isOpenEditorsExpanded, setIsOpenEditorsExpanded] = useState(true);
   const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(true);
   const [terminalHeight, setTerminalHeight] = useState(250);
   const [isResizingTerminal, setIsResizingTerminal] = useState(false);
@@ -546,12 +595,12 @@ export default function CodeEditor() {
     const resizeObserver =
       typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(() => {
-          try {
-            fitAddon.fit();
-          } catch {
-            /* Container may be temporarily hidden. */
-          }
-        })
+            try {
+              fitAddon.fit();
+            } catch {
+              /* Container may be temporarily hidden. */
+            }
+          })
         : null;
     if (resizeObserver) resizeObserver.observe(terminalRef.current);
     const handleWindowResize = () => {
@@ -724,6 +773,15 @@ export default function CodeEditor() {
     showToast(`Closed ${activeAssignment.fileName}`);
   }, [activeAssignment.fileName, isFileOpen, showToast, stopActiveRun]);
 
+  const toggleFolder = useCallback((folderId) => {
+    setExpandedFolders((current) => {
+      const next = new Set(current);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  }, []);
+
   const openAssignmentPicker = useCallback(() => {
     setAssignmentSearch("");
     setIsAssignmentPickerOpen(true);
@@ -743,6 +801,10 @@ export default function CodeEditor() {
       }
       setActiveAssignmentId(assignment.id);
       setCode(savedCode || assignment.code);
+      // Keep the Explorer focused on the single assignment currently selected.
+      setExpandedFolders(
+        new Set(["workspace", "assignments", `assignment-${assignment.id}`]),
+      );
       setIsFileOpen(true);
       setIsAssignmentPickerOpen(false);
       setAssignmentSearch("");
@@ -1071,7 +1133,7 @@ export default function CodeEditor() {
         case "previousAssignment":
           loadAssignment(
             ASSIGNMENTS[
-            (activeAssignmentId - 2 + ASSIGNMENTS.length) % ASSIGNMENTS.length
+              (activeAssignmentId - 2 + ASSIGNMENTS.length) % ASSIGNMENTS.length
             ],
           );
           break;
@@ -1233,9 +1295,9 @@ export default function CodeEditor() {
     if (monaco) {
       editor.addCommand(
         monaco.KeyMod.CtrlCmd |
-        monaco.KeyMod.Alt |
-        monaco.KeyMod.Shift |
-        monaco.KeyCode.KeyA,
+          monaco.KeyMod.Alt |
+          monaco.KeyMod.Shift |
+          monaco.KeyCode.KeyA,
         () => {
           const model = editor.getModel();
           if (model) editor.setSelection(model.getFullModelRange());
@@ -1244,9 +1306,9 @@ export default function CodeEditor() {
       );
       editor.addCommand(
         monaco.KeyMod.CtrlCmd |
-        monaco.KeyMod.Alt |
-        monaco.KeyMod.Shift |
-        monaco.KeyCode.KeyP,
+          monaco.KeyMod.Alt |
+          monaco.KeyMod.Shift |
+          monaco.KeyCode.KeyP,
         () => openAssignmentPicker(),
       );
       editor.addCommand(
@@ -1271,7 +1333,7 @@ export default function CodeEditor() {
       <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#111111] p-4 text-[#d4d4d4]">
         <div className="w-full max-w-md rounded-xl border border-[#393939] bg-[#1e1e1e] p-6 text-center shadow-2xl">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#252526]">
-            <Code2 size={24} className="text-[#42a5f5]" />
+            <VSCodeLogo size={28} />
           </div>
           <h1 className="text-base font-semibold text-white">
             Workspace closed
@@ -1301,7 +1363,7 @@ export default function CodeEditor() {
           className="flex items-center gap-3 rounded-lg border border-[#454545] bg-[#252526] px-4 py-3 shadow-xl hover:bg-[#333]"
           title="Restore workspace"
         >
-          <Code2 size={18} className="text-[#42a5f5]" />
+          <VSCodeLogo size={22} />
           <span className="text-left">
             <span className="block text-xs font-semibold text-white">
               se-practical
@@ -1406,93 +1468,22 @@ export default function CodeEditor() {
         }
       `}</style>
       <div className="flex h-full w-full min-w-0 flex-col overflow-hidden border border-[#343434] bg-[#1e1e1e] text-[13px]">
-        {/* Application title bar */}
-        <header className="flex h-10 shrink-0 items-center justify-between border-b border-[#2b2b2b] bg-[#181818] pl-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <Code2 size={17} className="shrink-0 text-[#42a5f5]" />
-            <span className="truncate text-xs text-[#c5c5c5]">
+        {/* Integrated title bar and application menu */}
+        <header className="relative z-[70] flex h-9 shrink-0 items-center gap-3 border-b border-[#2b2b2b] bg-[#181818] pl-2 pr-0">
+          <div className="flex min-w-0 shrink-0 items-center gap-2 pr-1">
+            <VSCodeLogo size={20} />
+            <span className="hidden truncate text-xs text-[#c5c5c5] sm:inline">
               se-practical
             </span>
           </div>
 
-          <div className="hidden items-center gap-1 rounded-md border border-[#363636] bg-[#222222] px-3 py-1 text-[11px] text-[#a9a9a9] md:flex">
-            <span>{activeAssignment.fileName}</span>
-            <span className="text-[#666]">—</span>
-            <span>se-practical</span>
-          </div>
-
-          <div className="flex h-full items-center gap-1">
-            <span
-              className={`mr-1 hidden items-center gap-1 text-[11px] sm:flex ${runState === "success" ? "text-emerald-400" : runState === "error" ? "text-red-400" : "text-[#8a8a8a]"}`}
-            >
-              <Circle size={7} fill="currentColor" />
-              {runState === "running"
-                ? "Running"
-                : runState === "success"
-                  ? "Last run passed"
-                  : runState === "error"
-                    ? "Last run failed"
-                    : "Ready"}
-            </span>
-            <IconButton
-              title="Save (Ctrl+S)"
-              onClick={saveCode}
-              className="mr-1 h-7 w-7 text-[#b9b9b9] hover:bg-[#333] hover:text-white"
-            >
-              <Save size={15} />
-            </IconButton>
-            <div className="ml-1 flex h-full border-l border-[#303030]">
-              <button
-                type="button"
-                title="Minimize workspace"
-                aria-label="Minimize workspace"
-                onClick={() => setIsMinimized(true)}
-                className="flex h-full w-11 items-center justify-center text-[#bdbdbd] transition-colors hover:bg-[#333] hover:text-white"
-              >
-                <Minus size={15} />
-              </button>
-              <button
-                type="button"
-                title={
-                  isNativeFullscreen
-                    ? "Restore from full screen"
-                    : "Maximize workspace"
-                }
-                aria-label={
-                  isNativeFullscreen
-                    ? "Restore workspace"
-                    : "Maximize workspace"
-                }
-                onClick={toggleFullscreen}
-                className="flex h-full w-11 items-center justify-center text-[#bdbdbd] transition-colors hover:bg-[#333] hover:text-white"
-              >
-                {isNativeFullscreen ? (
-                  <Minimize2 size={14} />
-                ) : (
-                  <Square size={13} />
-                )}
-              </button>
-              <button
-                type="button"
-                title="Close workspace"
-                aria-label="Close workspace"
-                onClick={() => setIsWorkspaceClosed(true)}
-                className="flex h-full w-12 items-center justify-center text-[#bdbdbd] transition-colors hover:bg-[#c42b1c] hover:text-white"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* Menu and run toolbar */}
-        <div className="flex h-10 shrink-0 items-center justify-between border-b border-[#2b2b2b] bg-[#1e1e1e] px-2 sm:px-3">
-          <div
+          <nav
             data-editor-menu-root="true"
-            className="flex min-w-0 items-center gap-0.5 overflow-visible"
+            aria-label="Application menu"
+            className="hidden min-w-0 items-center gap-0.5 xl:flex"
           >
             {Object.entries(MENU_CONFIG).map(([item, menuItems]) => (
-              <div key={item} className="relative hidden sm:block">
+              <div key={item} className="relative">
                 <button
                   type="button"
                   aria-haspopup="menu"
@@ -1509,7 +1500,7 @@ export default function CodeEditor() {
                   <div
                     role="menu"
                     aria-label={`${item} menu`}
-                    className="absolute left-0 top-full z-[80] mt-1 min-w-[250px] overflow-hidden rounded-md border border-[#454545] bg-[#252526] py-1 shadow-2xl"
+                    className="absolute left-0 top-full z-[90] mt-1 min-w-[250px] overflow-hidden rounded-md border border-[#454545] bg-[#252526] py-1 shadow-2xl"
                   >
                     {menuItems.map((menuItem, index) =>
                       menuItem.separator ? (
@@ -1538,9 +1529,108 @@ export default function CodeEditor() {
                 )}
               </div>
             ))}
-            <span className="ml-1 truncate text-[11px] text-[#666] sm:hidden">
-              File&nbsp; / &nbsp;Run
+          </nav>
+
+          <button
+            type="button"
+            onClick={openAssignmentPicker}
+            title="Select assignment (Ctrl+Shift+P)"
+            className="absolute left-1/2 hidden h-[25px] w-[min(34vw,360px)] -translate-x-1/2 items-center justify-center gap-2 rounded border border-[#383838] bg-[#222222] px-3 text-[11px] text-[#a9a9a9] hover:border-[#505050] hover:bg-[#292929] md:flex"
+          >
+            <Search size={12} className="shrink-0" />
+            <span className="truncate">
+              {activeAssignment.fileName} — se-practical
             </span>
+            <span className="ml-auto shrink-0 text-[10px] text-[#6e6e6e]">
+              Ctrl+Shift+P
+            </span>
+          </button>
+
+          <div className="ml-auto flex h-full shrink-0 items-center gap-1">
+            <span
+              className={`mr-1 hidden items-center gap-1 text-[10px] 2xl:flex ${runState === "success" ? "text-emerald-400" : runState === "error" ? "text-red-400" : "text-[#8a8a8a]"}`}
+            >
+              <Circle size={7} fill="currentColor" />
+              {runState === "running"
+                ? "Running"
+                : runState === "success"
+                  ? "Last run passed"
+                  : runState === "error"
+                    ? "Last run failed"
+                    : "Ready"}
+            </span>
+            <IconButton
+              title="Save (Ctrl+S)"
+              onClick={saveCode}
+              className="mr-1 h-7 w-7 text-[#b9b9b9] hover:bg-[#333] hover:text-white"
+            >
+              <Save size={14} />
+            </IconButton>
+            <div className="ml-1 flex h-full border-l border-[#303030]">
+              <button
+                type="button"
+                title="Minimize workspace"
+                aria-label="Minimize workspace"
+                onClick={() => setIsMinimized(true)}
+                className="flex h-full w-10 items-center justify-center text-[#bdbdbd] transition-colors hover:bg-[#333] hover:text-white"
+              >
+                <Minus size={14} />
+              </button>
+              <button
+                type="button"
+                title={
+                  isNativeFullscreen
+                    ? "Restore from full screen"
+                    : "Maximize workspace"
+                }
+                aria-label={
+                  isNativeFullscreen
+                    ? "Restore workspace"
+                    : "Maximize workspace"
+                }
+                onClick={toggleFullscreen}
+                className="flex h-full w-10 items-center justify-center text-[#bdbdbd] transition-colors hover:bg-[#333] hover:text-white"
+              >
+                {isNativeFullscreen ? (
+                  <Minimize2 size={13} />
+                ) : (
+                  <Square size={12} />
+                )}
+              </button>
+              <button
+                type="button"
+                title="Close workspace"
+                aria-label="Close workspace"
+                onClick={() => setIsWorkspaceClosed(true)}
+                className="flex h-full w-11 items-center justify-center text-[#bdbdbd] transition-colors hover:bg-[#c42b1c] hover:text-white"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Workspace actions and current-file context */}
+        <div className="flex h-9 shrink-0 items-center justify-between border-b border-[#2b2b2b] bg-[#1e1e1e] px-2 sm:px-3">
+          <div className="flex min-w-0 items-center gap-1.5 text-[11px]">
+            <button
+              type="button"
+              title="Open assignment selector"
+              onClick={openAssignmentPicker}
+              className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded text-[#858585] hover:bg-[#333] hover:text-white md:hidden"
+            >
+              <Search size={14} />
+            </button>
+            <FolderOpen size={13} className="shrink-0 text-[#dcb67a]" />
+            <span className="hidden text-[#858585] sm:inline">
+              SE-PRACTICAL
+            </span>
+            <ChevronRight size={12} className="hidden text-[#666] sm:inline" />
+            <FileCode2 size={13} className="shrink-0 text-[#6cb6ff]" />
+            <span className="truncate text-[#c5c5c5]">
+              {activeAssignment.fileName}
+            </span>
+            <span className="hidden text-[#666] md:inline">· C source</span>
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
@@ -1579,7 +1669,7 @@ export default function CodeEditor() {
             <IconButton
               title="Restore starter code"
               onClick={resetCode}
-              className="h-7 w-7 text-[#b9b9b9] hover:bg-[#333] hover:text-white"
+              className="hidden h-7 w-7 text-[#b9b9b9] hover:bg-[#333] hover:text-white sm:inline-flex"
             >
               <RotateCcw size={14} />
             </IconButton>
@@ -1657,56 +1747,194 @@ export default function CodeEditor() {
           <aside
             className={`${isExplorerOpen ? "hidden md:flex" : "hidden"} w-[210px] shrink-0 flex-col border-r border-[#2b2b2b] bg-[#181818] lg:w-[240px]`}
           >
-            <div className="flex h-9 items-center justify-between px-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#bbbbbb]">
+            <div className="flex h-9 items-center justify-between px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#bbbbbb]">
               <span>{activeActivityItem?.label || "Explorer"}</span>
-              <ChevronDown size={14} className="text-[#858585]" />
+              <div className="flex items-center gap-1">
+                {activeActivity === "explorer" && (
+                  <IconButton
+                    title="Collapse all folders"
+                    onClick={() => setExpandedFolders(new Set(["workspace"]))}
+                    className="h-6 w-6 text-[#858585] hover:bg-[#333] hover:text-white"
+                  >
+                    <ChevronRight size={14} />
+                  </IconButton>
+                )}
+                <IconButton
+                  title="Expand selected assignment"
+                  onClick={() =>
+                    setExpandedFolders(
+                      new Set([
+                        "workspace",
+                        "assignments",
+                        `assignment-${activeAssignmentId}`,
+                      ]),
+                    )
+                  }
+                  className="h-6 w-6 text-[#858585] hover:bg-[#333] hover:text-white"
+                >
+                  <FolderOpen size={13} />
+                </IconButton>
+              </div>
             </div>
 
             {activeActivity === "explorer" ? (
               <div className="min-h-0 flex-1 overflow-y-auto py-1">
-                <div className="flex h-7 items-center gap-1 px-2 font-semibold text-[#c5c5c5]">
-                  <ChevronDown size={14} />
-                  <FolderOpen size={15} className="text-[#dcb67a]" />
-                  <span className="text-[11px]">SE-PRACTICAL</span>
+                <div className="px-1">
+                  <button
+                    type="button"
+                    aria-expanded={expandedFolders.has("workspace")}
+                    onClick={() => toggleFolder("workspace")}
+                    className="flex h-7 w-full items-center gap-1 rounded-sm px-1 text-left font-semibold text-[#c5c5c5] hover:bg-[#2a2d2e]"
+                    title="Expand or collapse workspace"
+                  >
+                    {expandedFolders.has("workspace") ? (
+                      <ChevronDown size={14} />
+                    ) : (
+                      <ChevronRight size={14} />
+                    )}
+                    {expandedFolders.has("workspace") ? (
+                      <FolderOpen size={15} className="text-[#dcb67a]" />
+                    ) : (
+                      <Folder size={15} className="text-[#dcb67a]" />
+                    )}
+                    <span className="truncate text-[11px]">SE-PRACTICAL</span>
+                  </button>
+
+                  {expandedFolders.has("workspace") && (
+                    <div>
+                      <button
+                        type="button"
+                        aria-expanded={expandedFolders.has("assignments")}
+                        onClick={() => toggleFolder("assignments")}
+                        className="flex h-7 w-full items-center gap-1 rounded-sm pl-4 pr-1 text-left text-[#c5c5c5] hover:bg-[#2a2d2e]"
+                        title="Expand or collapse assignment folders"
+                      >
+                        {expandedFolders.has("assignments") ? (
+                          <ChevronDown size={14} />
+                        ) : (
+                          <ChevronRight size={14} />
+                        )}
+                        {expandedFolders.has("assignments") ? (
+                          <FolderOpen size={15} className="text-[#dcb67a]" />
+                        ) : (
+                          <Folder size={15} className="text-[#dcb67a]" />
+                        )}
+                        <span className="truncate text-[11px]">
+                          assignments
+                        </span>
+                      </button>
+
+                      {expandedFolders.has("assignments") && (
+                        <div>
+                          {/* Keep other assignments out of the Explorer tree. Switch assignments with Ctrl+Shift+P. */}
+                          {ASSIGNMENTS.filter(
+                            (assignment) =>
+                              assignment.id === activeAssignmentId,
+                          ).map((assignment) => {
+                            const folderId = `assignment-${assignment.id}`;
+                            const isExpanded = expandedFolders.has(folderId);
+                            const isActive =
+                              activeAssignmentId === assignment.id;
+                            return (
+                              <div key={assignment.id}>
+                                <button
+                                  type="button"
+                                  aria-expanded={isExpanded}
+                                  title={assignment.title}
+                                  onClick={() => toggleFolder(folderId)}
+                                  className={`flex h-7 w-full items-center gap-1 rounded-sm pl-7 pr-1 text-left hover:bg-[#2a2d2e] ${isActive ? "text-[#e5e5e5]" : "text-[#bdbdbd]"}`}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronDown size={13} />
+                                  ) : (
+                                    <ChevronRight size={13} />
+                                  )}
+                                  {isExpanded ? (
+                                    <FolderOpen
+                                      size={14}
+                                      className="text-[#dcb67a]"
+                                    />
+                                  ) : (
+                                    <Folder
+                                      size={14}
+                                      className="text-[#dcb67a]"
+                                    />
+                                  )}
+                                  <span className="truncate text-[11px]">
+                                    {ASSIGNMENT_FOLDER_NAMES[assignment.id]}
+                                  </span>
+                                  {isActive && (
+                                    <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-[#007acc]" />
+                                  )}
+                                </button>
+                                {isExpanded && (
+                                  <button
+                                    type="button"
+                                    title={`Open ${assignment.title}`}
+                                    onClick={() => loadAssignment(assignment)}
+                                    className={`flex h-7 w-full items-center gap-2 border-l-2 pl-[53px] pr-2 text-left ${isActive && isFileOpen ? "border-[#42a5f5] bg-[#37373d] text-[#e5e5e5]" : "border-transparent text-[#bdbdbd] hover:bg-[#2a2d2e]"}`}
+                                  >
+                                    <FileCode2
+                                      size={14}
+                                      className="shrink-0 text-[#6cb6ff]"
+                                    />
+                                    <span className="truncate text-[11px]">
+                                      {assignment.fileName}
+                                    </span>
+                                    <span className="ml-auto text-[10px] text-[#777]">
+                                      C
+                                    </span>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsFileOpen(true)}
-                  className={`flex h-7 w-full items-center gap-2 border-l-2 pl-7 pr-2 text-left ${isFileOpen ? "border-[#42a5f5] bg-[#37373d] text-[#e5e5e5]" : "border-transparent text-[#bdbdbd] hover:bg-[#2a2d2e]"}`}
-                >
-                  <FileCode2 size={15} className="text-[#6cb6ff]" />
-                  <span>{activeAssignment.fileName}</span>
-                  <span className="ml-auto text-[10px] text-[#777]">C</span>
-                </button>
-                <div className="mt-4 border-t border-[#2b2b2b] px-3 py-3">
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8f8f8f]">
-                    Outline
-                  </p>
-                  {getFunctionNames(code).map((name) => (
-                    <button
-                      key={name}
-                      type="button"
-                      onClick={() => {
-                        const match = code
-                          .split("\n")
-                          .findIndex((line) =>
-                            new RegExp(`\\b${name}\\s*\\(`).test(line),
-                          );
-                        if (match >= 0 && editorRef.current) {
-                          editorRef.current.revealLineInCenter(match + 1);
-                          editorRef.current.setPosition({
-                            lineNumber: match + 1,
-                            column: 1,
-                          });
-                          editorRef.current.focus();
-                        }
-                      }}
-                      className="flex h-6 w-full items-center gap-2 rounded px-1 text-left text-[11px] text-[#a9a9a9] hover:bg-[#2a2d2e] hover:text-white"
-                    >
-                      <span className="text-[#c586c0]">ƒ</span>
-                      {name}()
-                    </button>
-                  ))}
+
+                <div className="mt-3 border-t border-[#2b2b2b]">
+                  <button
+                    type="button"
+                    aria-expanded={isOutlineExpanded}
+                    onClick={() => setIsOutlineExpanded((current) => !current)}
+                    className="flex h-8 w-full items-center gap-1 px-2 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8f8f8f] hover:bg-[#222]"
+                  >
+                    {isOutlineExpanded ? (
+                      <ChevronDown size={13} />
+                    ) : (
+                      <ChevronRight size={13} />
+                    )}
+                    <span>Outline</span>
+                  </button>
+                  {isOutlineExpanded &&
+                    getFunctionNames(code).map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => {
+                          const match = code
+                            .split("\n")
+                            .findIndex((line) =>
+                              new RegExp(`\\b${name}\\s*\\(`).test(line),
+                            );
+                          if (match >= 0 && editorRef.current) {
+                            editorRef.current.revealLineInCenter(match + 1);
+                            editorRef.current.setPosition({
+                              lineNumber: match + 1,
+                              column: 1,
+                            });
+                            editorRef.current.focus();
+                          }
+                        }}
+                        className="flex h-6 w-full items-center gap-2 rounded px-3 text-left text-[11px] text-[#a9a9a9] hover:bg-[#2a2d2e] hover:text-white"
+                      >
+                        <span className="text-[#c586c0]">ƒ</span>
+                        <span className="truncate">{name}()</span>
+                      </button>
+                    ))}
                 </div>
               </div>
             ) : (
@@ -1767,22 +1995,34 @@ export default function CodeEditor() {
               </div>
             )}
 
-            <div className="border-t border-[#2b2b2b] px-3 py-2 text-[10px] text-[#858585]">
-              <div className="flex items-center justify-between">
-                <span>OPEN EDITORS</span>
-                <ChevronDown size={13} />
-              </div>
+            <div className="border-t border-[#2b2b2b] px-2 py-1.5 text-[10px] text-[#858585]">
               <button
                 type="button"
-                onClick={() => setIsFileOpen(true)}
-                className="mt-2 flex w-full items-center gap-2 rounded px-1 py-1 text-left text-[#bdbdbd] hover:bg-[#2a2d2e]"
+                aria-expanded={isOpenEditorsExpanded}
+                onClick={() => setIsOpenEditorsExpanded((current) => !current)}
+                className="flex h-6 w-full items-center gap-1 text-left font-semibold hover:text-[#cccccc]"
               >
-                <FileCode2 size={13} className="text-[#6cb6ff]" />{" "}
-                {activeAssignment.fileName}{" "}
+                {isOpenEditorsExpanded ? (
+                  <ChevronDown size={13} />
+                ) : (
+                  <ChevronRight size={13} />
+                )}
+                <span>OPEN EDITORS</span>
                 {isFileOpen && (
-                  <span className="ml-auto text-[10px] text-[#777]">●</span>
+                  <span className="ml-auto text-[10px] text-[#666]">1</span>
                 )}
               </button>
+              {isOpenEditorsExpanded && isFileOpen && (
+                <button
+                  type="button"
+                  onClick={() => setIsFileOpen(true)}
+                  className="flex h-7 w-full items-center gap-2 rounded px-1 text-left text-[#bdbdbd] hover:bg-[#2a2d2e]"
+                >
+                  <FileCode2 size={13} className="shrink-0 text-[#6cb6ff]" />
+                  <span className="truncate">{activeAssignment.fileName}</span>
+                  <span className="ml-auto text-[10px] text-[#777]">C</span>
+                </button>
+              )}
             </div>
           </aside>
 
