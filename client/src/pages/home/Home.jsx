@@ -712,110 +712,78 @@ int main(void) {
 
 #define MAX 100
 
-struct Stack {
-    int top;
-    char items[MAX];
-};
+char stack[MAX];
+int top = -1;
 
-void initStack(struct Stack *s) {
-    s->top = -1;
+void push(char ch) {
+    stack[++top] = ch;
 }
 
-int isEmpty(struct Stack *s) {
-    return s->top == -1;
+char pop() {
+    return stack[top--];
 }
 
-int isFull(struct Stack *s) {
-    return s->top == MAX - 1;
+int precedence(char ch) {
+    if (ch == '^')
+        return 3;
+    else if (ch == '*' || ch == '/')
+        return 2;
+    else if (ch == '+' || ch == '-')
+        return 1;
+    else
+        return 0;
 }
 
-void push(struct Stack *s, char value) {
-    if (!isFull(s))
-        s->items[++s->top] = value;
-}
+void infixToPostfix(char infix[]) {
+    char postfix[MAX];
+    int i, j = 0;
+    char ch;
 
-char pop(struct Stack *s) {
-    if (isEmpty(s))
-        return '\0';
-
-    return s->items[s->top--];
-}
-
-char peek(struct Stack *s) {
-    if (isEmpty(s))
-        return '\0';
-
-    return s->items[s->top];
-}
-
-int getPrecedence(char ch) {
-    switch (ch) {
-        case '^':
-            return 3;
-        case '*':
-        case '/':
-        case '%':
-            return 2;
-        case '+':
-        case '-':
-            return 1;
-        default:
-            return 0;
-    }
-}
-
-int isRightAssociative(char ch) {
-    return ch == '^';
-}
-
-void infixToPostfix(char infix[], char postfix[]) {
-    struct Stack s;
-    initStack(&s);
-
-    int i = 0, k = 0;
-
-    while (infix[i] != '\0') {
-        char ch = infix[i++];
-
-        if (isspace((unsigned char)ch))
-            continue;
+    for (i = 0; infix[i] != '\0'; i++) {
+        ch = infix[i];
 
         if (isalnum((unsigned char)ch)) {
-            postfix[k++] = ch;
-        } else if (ch == '(') {
-            push(&s, ch);
-        } else if (ch == ')') {
-            while (!isEmpty(&s) && peek(&s) != '(')
-                postfix[k++] = pop(&s);
-
-            if (!isEmpty(&s) && peek(&s) == '(')
-                pop(&s);
-        } else if (getPrecedence(ch) > 0) {
-            while (!isEmpty(&s) && peek(&s) != '(' &&
-                   (getPrecedence(peek(&s)) > getPrecedence(ch) ||
-                   (getPrecedence(peek(&s)) == getPrecedence(ch) &&
-                    !isRightAssociative(ch)))) {
-                postfix[k++] = pop(&s);
+            postfix[j++] = ch;
+        }
+        else if (ch == '(') {
+            push(ch);
+        }
+        else if (ch == ')') {
+            while (top != -1 && stack[top] != '(') {
+                postfix[j++] = pop();
             }
-
-            push(&s, ch);
+            if (top != -1)
+                pop();
+        }
+        else {
+            while (top != -1 && stack[top] != '(' &&
+                   (precedence(stack[top]) > precedence(ch) ||
+                   (precedence(stack[top]) == precedence(ch) && ch != '^'))) {
+                postfix[j++] = pop();
+            }
+            push(ch);
         }
     }
 
-    while (!isEmpty(&s))
-        postfix[k++] = pop(&s);
+    while (top != -1) {
+        postfix[j++] = pop();
+    }
 
-    postfix[k] = '\0';
+    postfix[j] = '\0';
+
+    printf("Postfix Expression: %s\n", postfix);
 }
 
 int main(void) {
-    char infix[] = "a+b*(c^d-e)^(f+g*h)-i";
-    char postfix[MAX];
+    char infix[MAX];
 
-    infixToPostfix(infix, postfix);
+    printf("Enter infix expression: ");
+    if (scanf("%99s", infix) != 1) {
+        printf("Invalid input.\n");
+        return 1;
+    }
 
-    printf("Infix Expression: %s\n", infix);
-    printf("Postfix Expression: %s\n", postfix);
+    infixToPostfix(infix);
 
     return 0;
 }`,
