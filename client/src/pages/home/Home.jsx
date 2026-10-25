@@ -719,7 +719,21 @@ void push(char ch) {
     stack[++top] = ch;
 }
 
-char pop() {
+int isEmpty(void) {
+    return top == -1;
+}
+
+char peek(void) {
+    if (isEmpty())
+        return '\0';
+
+    return stack[top];
+}
+
+char pop(void) {
+    if (isEmpty())
+        return '\0';
+
     return stack[top--];
 }
 
@@ -749,23 +763,23 @@ void infixToPostfix(char infix[]) {
             push(ch);
         }
         else if (ch == ')') {
-            while (top != -1 && stack[top] != '(') {
+            while (!isEmpty() && peek() != '(') {
                 postfix[j++] = pop();
             }
-            if (top != -1)
+            if (!isEmpty())
                 pop();
         }
         else {
-            while (top != -1 && stack[top] != '(' &&
-                   (precedence(stack[top]) > precedence(ch) ||
-                   (precedence(stack[top]) == precedence(ch) && ch != '^'))) {
+            while (!isEmpty() && peek() != '(' &&
+                   (precedence(peek()) > precedence(ch) ||
+                   (precedence(peek()) == precedence(ch) && ch != '^'))) {
                 postfix[j++] = pop();
             }
             push(ch);
         }
     }
 
-    while (top != -1) {
+    while (!isEmpty()) {
         postfix[j++] = pop();
     }
 
@@ -901,12 +915,14 @@ struct Node {
     struct Node *right;
 };
 
+int isMirrored = 0;
+
 struct Node *createNode(int value) {
     struct Node *newNode = malloc(sizeof(struct Node));
 
     if (newNode == NULL) {
         printf("Memory allocation failed.\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     newNode->data = value;
@@ -916,47 +932,60 @@ struct Node *createNode(int value) {
     return newNode;
 }
 
-struct Node *insert(struct Node *root, int value) {
+struct Node *insertNode(struct Node *root, int value) {
     if (root == NULL)
         return createNode(value);
 
-    if (value < root->data)
-        root->left = insert(root->left, value);
-    else if (value > root->data)
-        root->right = insert(root->right, value);
+    if (value == root->data)
+        return root;
+
+    if ((!isMirrored && value < root->data) ||
+        (isMirrored && value > root->data))
+        root->left = insertNode(root->left, value);
     else
-        printf("Duplicate value ignored.\n");
+        root->right = insertNode(root->right, value);
 
     return root;
 }
 
-void inorder(struct Node *root) {
-    if (root != NULL) {
-        inorder(root->left);
-        printf("%d ", root->data);
-        inorder(root->right);
-    }
-}
-
-void findMinimum(struct Node *root, int *minimum) {
-    if (root == NULL)
-        return;
-
-    if (root->data < *minimum)
-        *minimum = root->data;
-
-    findMinimum(root->left, minimum);
-    findMinimum(root->right, minimum);
-}
-
-int calculateHeight(struct Node *root) {
+int searchValue(struct Node *root, int key) {
     if (root == NULL)
         return 0;
 
-    int leftHeight = calculateHeight(root->left);
-    int rightHeight = calculateHeight(root->right);
+    if (root->data == key)
+        return 1;
 
-    return 1 + (leftHeight > rightHeight ? leftHeight : rightHeight);
+    if ((!isMirrored && key < root->data) ||
+        (isMirrored && key > root->data))
+        return searchValue(root->left, key);
+
+    return searchValue(root->right, key);
+}
+
+int height(struct Node *root) {
+    if (root == NULL)
+        return 0;
+
+    int leftHeight = height(root->left);
+    int rightHeight = height(root->right);
+
+    return (leftHeight > rightHeight ?
+            leftHeight : rightHeight) + 1;
+}
+
+struct Node *findMinimumNode(struct Node *root) {
+    if (root == NULL)
+        return NULL;
+
+    if (isMirrored) {
+        while (root->right != NULL)
+            root = root->right;
+    } else {
+        while (root->left != NULL)
+            root = root->left;
+    }
+
+    return root;
 }
 
 void mirrorTree(struct Node *root) {
@@ -971,87 +1000,134 @@ void mirrorTree(struct Node *root) {
     mirrorTree(root->right);
 }
 
-int search(struct Node *root, int key) {
+void inorder(struct Node *root) {
     if (root == NULL)
-        return 0;
+        return;
 
-    if (root->data == key)
-        return 1;
-
-    return search(root->left, key) || search(root->right, key);
+    inorder(root->left);
+    printf("%d ", root->data);
+    inorder(root->right);
 }
 
 void freeTree(struct Node *root) {
-    if (root != NULL) {
-        freeTree(root->left);
-        freeTree(root->right);
-        free(root);
-    }
+    if (root == NULL)
+        return;
+
+    freeTree(root->left);
+    freeTree(root->right);
+    free(root);
 }
 
 int main(void) {
     struct Node *root = NULL;
-    int choice, value, minimum;
+    int n, value, choice;
+
+    printf("Enter number of nodes for the BST: ");
+    if (scanf("%d", &n) != 1 || n < 0) {
+        printf("Invalid number of nodes.\n");
+        return 1;
+    }
+
+    for (int i = 0; i < n; i++) {
+        printf("Enter value %d: ", i + 1);
+
+        if (scanf("%d", &value) != 1) {
+            printf("Invalid input.\n");
+            freeTree(root);
+            return 1;
+        }
+
+        if (searchValue(root, value)) {
+            printf("Duplicate value ignored.\n");
+        } else {
+            root = insertNode(root, value);
+        }
+    }
 
     do {
         printf("\n===== BINARY SEARCH TREE MENU =====\n");
-        printf("1. Insert Node\n");
-        printf("2. Display Tree (Inorder)\n");
-        printf("3. Find Minimum Value\n");
-        printf("4. Find Height of Tree\n");
-        printf("5. Mirror the Tree\n");
-        printf("6. Search a Value\n");
+        printf("1. Insert a new node\n");
+        printf("2. Find height of tree\n");
+        printf("3. Find minimum value\n");
+        printf("4. Mirror the tree\n");
+        printf("5. Search for a value\n");
+        printf("6. Display tree (Inorder)\n");
         printf("7. Exit\n");
-        printf("Enter choice: ");
-        scanf("%d", &choice);
+        printf("Enter your choice: ");
+
+        if (scanf("%d", &choice) != 1) {
+            printf("Invalid input.\n");
+            freeTree(root);
+            return 1;
+        }
 
         switch (choice) {
             case 1:
                 printf("Enter value to insert: ");
-                scanf("%d", &value);
-                root = insert(root, value);
+
+                if (scanf("%d", &value) != 1) {
+                    printf("Invalid input.\n");
+                    freeTree(root);
+                    return 1;
+                }
+
+                if (searchValue(root, value)) {
+                    printf("Value already exists.\n");
+                } else {
+                    root = insertNode(root, value);
+                    printf("Node inserted successfully.\n");
+                }
                 break;
 
             case 2:
-                if (root == NULL)
-                    printf("Tree is empty.\n");
-                else {
-                    printf("Inorder Traversal: ");
-                    inorder(root);
-                    printf("\n");
-                }
+                printf("Height of tree: %d\n", height(root));
                 break;
 
-            case 3:
+            case 3: {
+                struct Node *minimum = findMinimumNode(root);
+
+                if (minimum == NULL)
+                    printf("Tree is empty.\n");
+                else
+                    printf("Minimum value: %d\n", minimum->data);
+
+                break;
+            }
+
+            case 4:
                 if (root == NULL) {
                     printf("Tree is empty.\n");
                 } else {
-                    minimum = root->data;
-                    findMinimum(root, &minimum);
-                    printf("Minimum value: %d\n", minimum);
+                    mirrorTree(root);
+                    isMirrored = !isMirrored;
+                    printf("Tree mirrored successfully.\n");
                 }
                 break;
 
-            case 4:
-                printf("Height of Tree: %d\n", calculateHeight(root));
-                break;
-
             case 5:
-                mirrorTree(root);
-                printf("Tree mirrored successfully.\n");
-                printf("New Inorder Traversal: ");
-                inorder(root);
-                printf("\n");
+                printf("Enter value to search: ");
+
+                if (scanf("%d", &value) != 1) {
+                    printf("Invalid input.\n");
+                    freeTree(root);
+                    return 1;
+                }
+
+                if (searchValue(root, value))
+                    printf("Value found.\n");
+                else
+                    printf("Value not found.\n");
+
                 break;
 
             case 6:
-                printf("Enter value to search: ");
-                scanf("%d", &value);
-
-                if (search(root, value))
-                    printf("Value found in the tree.\n");
-                else
-                    printf("Value not found in the tree.\n");
+                if (root == NULL) {
+                    printf("Tree is empty.\n");
+                } else {
+                    printf("Inorder traversal: ");
+                    inorder(root);
+                    printf("\n");
+                }
                 break;
 
             case 7:
@@ -1059,224 +1135,150 @@ int main(void) {
                 break;
 
             default:
-                printf("Invalid choice. Enter 1-7.\n");
+                printf("Invalid choice. Please try again.\n");
         }
+
     } while (choice != 7);
 
     freeTree(root);
+
     return 0;
 }`,
   },
   {
     id: 9,
     title:
-      "Representing Flight Paths and Costs Using a Graph and Checking Connectivity with DFS",
+      "Representing Flight Paths Using an Adjacency Matrix and Checking Connectivity with DFS",
     code: String.raw`#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#define MAX_CITIES 10
+#define MAX_CITIES 20
+#define MAX_NAME 50
 
-struct Node {
-    int cityIndex;
-    int cost;
-    struct Node *next;
-};
-
-char cityNames[MAX_CITIES][50];
-struct Node *adjList[MAX_CITIES];
-int numCities = 0;
+int graph[MAX_CITIES][MAX_CITIES];
 int visited[MAX_CITIES];
+int numberOfCities;
+char cities[MAX_CITIES][MAX_NAME];
 
-int getCityIndex(char name[]) {
-    for (int i = 0; i < numCities; i++) {
-        if (strcmp(cityNames[i], name) == 0)
-            return i;
-    }
-
-    return -1;
-}
-
-void freeGraph(void) {
-    for (int i = 0; i < MAX_CITIES; i++) {
-        struct Node *temp = adjList[i];
-
-        while (temp != NULL) {
-            struct Node *next = temp->next;
-            free(temp);
-            temp = next;
-        }
-
-        adjList[i] = NULL;
-    }
-}
-
-void addFlight(int src, int dest, int cost) {
-    struct Node *first = malloc(sizeof(struct Node));
-    struct Node *second = malloc(sizeof(struct Node));
-
-    if (first == NULL || second == NULL) {
-        printf("Memory allocation failed.\n");
-        free(first);
-        free(second);
-        return;
-    }
-
-    first->cityIndex = dest;
-    first->cost = cost;
-    first->next = adjList[src];
-    adjList[src] = first;
-
-    second->cityIndex = src;
-    second->cost = cost;
-    second->next = adjList[dest];
-    adjList[dest] = second;
+void addFlight(int source, int destination, int cost) {
+    graph[source][destination] = cost;
+    graph[destination][source] = cost;
 }
 
 void displayGraph(void) {
-    if (numCities == 0) {
-        printf("No cities added yet.\n");
-        return;
-    }
+    printf("\nAdjacency Matrix (0 means no direct flight):\n\t");
 
-    printf("\n===== FLIGHT PATH NETWORK =====\n");
+    for (int i = 0; i < numberOfCities; i++)
+        printf("%s\t", cities[i]);
 
-    for (int i = 0; i < numCities; i++) {
-        printf("%s -> ", cityNames[i]);
+    printf("\n");
 
-        struct Node *temp = adjList[i];
+    for (int i = 0; i < numberOfCities; i++) {
+        printf("%s\t", cities[i]);
 
-        if (temp == NULL) {
-            printf("No direct flights");
-        } else {
-            while (temp != NULL) {
-                printf("[%s | Cost: %d] ",
-                       cityNames[temp->cityIndex], temp->cost);
-                temp = temp->next;
-            }
-        }
+        for (int j = 0; j < numberOfCities; j++)
+            printf("%d\t", graph[i][j]);
 
         printf("\n");
     }
 }
 
-void DFS(int cityIndex) {
-    visited[cityIndex] = 1;
+void DFS(int city) {
+    visited[city] = 1;
 
-    struct Node *temp = adjList[cityIndex];
-
-    while (temp != NULL) {
-        if (!visited[temp->cityIndex])
-            DFS(temp->cityIndex);
-
-        temp = temp->next;
+    for (int i = 0; i < numberOfCities; i++) {
+        if (graph[city][i] > 0 && !visited[i])
+            DFS(i);
     }
 }
 
-void checkConnectivity(void) {
-    if (numCities == 0) {
-        printf("No graph available to check connectivity.\n");
-        return;
-    }
-
-    for (int i = 0; i < MAX_CITIES; i++)
+int isConnected(void) {
+    for (int i = 0; i < numberOfCities; i++)
         visited[i] = 0;
 
     DFS(0);
 
-    int connected = 1;
-
-    for (int i = 0; i < numCities; i++) {
-        if (!visited[i]) {
-            connected = 0;
-            break;
-        }
+    for (int i = 0; i < numberOfCities; i++) {
+        if (!visited[i])
+            return 0;
     }
 
-    if (connected)
-        printf("Result: The graph IS CONNECTED.\n");
-    else
-        printf("Result: The graph is NOT CONNECTED.\n");
+    return 1;
 }
 
 int main(void) {
-    int choice, numFlights, cost;
-    char srcCity[50], destCity[50];
+    int numberOfFlights;
+    int source, destination, cost;
 
-    do {
-        printf("\n===== FLIGHT PATH MANAGEMENT MENU =====\n");
-        printf("1. Input Cities and Flights\n");
-        printf("2. Display Flight Paths\n");
-        printf("3. Check Graph Connectivity\n");
-        printf("4. Exit\n");
-        printf("Enter choice: ");
-        scanf("%d", &choice);
+    printf("Enter number of cities (1-%d): ", MAX_CITIES);
+    if (scanf("%d", &numberOfCities) != 1 ||
+        numberOfCities < 1 || numberOfCities > MAX_CITIES) {
+        printf("Invalid number of cities.\n");
+        return 1;
+    }
 
-        switch (choice) {
-            case 1:
-                freeGraph();
+    for (int i = 0; i < numberOfCities; i++) {
+        printf("Enter name of city %d (single word): ", i + 1);
 
-                printf("Enter number of cities (max %d): ", MAX_CITIES);
-                scanf("%d", &numCities);
-
-                if (numCities < 1 || numCities > MAX_CITIES) {
-                    printf("Invalid number of cities.\n");
-                    numCities = 0;
-                    break;
-                }
-
-                for (int i = 0; i < numCities; i++) {
-                    printf("Enter name for City %d: ", i + 1);
-                    scanf("%49s", cityNames[i]);
-                }
-
-                printf("Enter number of flight routes: ");
-                scanf("%d", &numFlights);
-
-                if (numFlights < 0) {
-                    printf("Invalid number of routes.\n");
-                    break;
-                }
-
-                for (int i = 0; i < numFlights; i++) {
-                    printf("\nFlight %d details:\n", i + 1);
-                    printf("Source City: ");
-                    scanf("%49s", srcCity);
-
-                    printf("Destination City: ");
-                    scanf("%49s", destCity);
-
-                    printf("Flight Cost/Time: ");
-                    scanf("%d", &cost);
-
-                    int srcIndex = getCityIndex(srcCity);
-                    int destIndex = getCityIndex(destCity);
-
-                    if (srcIndex != -1 && destIndex != -1)
-                        addFlight(srcIndex, destIndex, cost);
-                    else
-                        printf("Invalid city name. Flight skipped.\n");
-                }
-                break;
-
-            case 2:
-                displayGraph();
-                break;
-
-            case 3:
-                checkConnectivity();
-                break;
-
-            case 4:
-                printf("Exiting program...\n");
-                break;
-
-            default:
-                printf("Invalid selection. Try again.\n");
+        if (scanf("%49s", cities[i]) != 1) {
+            printf("Invalid city name.\n");
+            return 1;
         }
-    } while (choice != 4);
+    }
 
-    freeGraph();
+    printf("Enter number of flights: ");
+    if (scanf("%d", &numberOfFlights) != 1 ||
+        numberOfFlights < 0 ||
+        numberOfFlights > numberOfCities * (numberOfCities - 1) / 2) {
+        printf("Invalid number of flights.\n");
+        return 1;
+    }
+
+    for (int i = 0; i < numberOfFlights; i++) {
+        printf("\nFlight %d\n", i + 1);
+
+        printf("Enter source city number (1-%d): ", numberOfCities);
+
+        if (scanf("%d", &source) != 1 ||
+            source < 1 || source > numberOfCities) {
+            printf("Invalid source city.\n");
+            return 1;
+        }
+
+        printf("Enter destination city number (1-%d): ", numberOfCities);
+
+        if (scanf("%d", &destination) != 1 ||
+            destination < 1 || destination > numberOfCities) {
+            printf("Invalid destination city.\n");
+            return 1;
+        }
+
+        if (source == destination) {
+            printf("Source and destination must be different.\n");
+            return 1;
+        }
+
+        if (graph[source - 1][destination - 1] != 0) {
+            printf("This flight route has already been entered.\n");
+            return 1;
+        }
+
+        printf("Enter flight cost: ");
+
+        if (scanf("%d", &cost) != 1 || cost <= 0) {
+            printf("Flight cost must be a positive integer.\n");
+            return 1;
+        }
+
+        addFlight(source - 1, destination - 1, cost);
+    }
+
+    displayGraph();
+
+    if (isConnected())
+        printf("\nThe graph is connected. Every city is reachable from every other city.\n");
+    else
+        printf("\nThe graph is not connected. Some cities are unreachable.\n");
+
     return 0;
 }`,
   },
